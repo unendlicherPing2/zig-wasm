@@ -3,30 +3,27 @@ const std = @import("std");
 pub fn build(b: *std.Build) void {
     const zig_js = b.dependency("zig-js", .{});
 
-    const target = b.standardTargetOptions(.{
-        .default_target = .{
-            .cpu_arch = .wasm32,
-            .os_tag = .freestanding,
-        },
-    });
-
     const optimize = b.standardOptimizeOption(.{});
 
-    const exe = b.addExecutable(.{
+    const wasm = b.addExecutable(.{
         .name = "main",
         .root_source_file = b.path("src/main.zig"),
-        .target = target,
+        .target = b.resolveTargetQuery(.{
+            .cpu_arch = .wasm32,
+            .os_tag = .freestanding,
+        }),
         .optimize = optimize,
     });
+    wasm.root_module.addImport("zig-js", zig_js.module("zig-js"));
+    wasm.entry = .disabled;
+    wasm.export_memory = true;
 
-    exe.rdynamic = true;
-    exe.entry = .disabled;
+    // custom's path is relative to zig-out
+    const wasm_install = b.addInstallFileWithDir(
+        wasm.getEmittedBin(),
+        .{ .custom = "../dist" },
+        "main.wasm",
+    );
 
-    exe.root_module.addImport("zig-js", zig_js.module("zig-js"));
-
-    b.installArtifact(exe);
-
-    const install_step = b.addInstallArtifact(exe, .{ .dest_dir = .{ .override = .{ .custom = "../dist" } } });
-    install_step.step.dependOn(&exe.step);
-    b.getInstallStep().dependOn(&install_step.step);
+    b.getInstallStep().dependOn(&wasm_install.step);
 }
