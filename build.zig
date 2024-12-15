@@ -16,6 +16,7 @@ pub fn build(b: *std.Build) void {
     });
     wasm.root_module.addImport("zig-js", zig_js.module("zig-js"));
     wasm.entry = .disabled;
+    wasm.rdynamic = true;
     wasm.export_memory = true;
 
     // custom's path is relative to zig-out
